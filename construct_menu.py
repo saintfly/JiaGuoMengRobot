@@ -94,8 +94,7 @@ class policy_center:
     def get_buff_msg(self):
         cfg=self.config["建设菜单"]["政策中心"]["弹窗"]["弹窗"]["增益信息"]["矩形"]
         img=self.win.screenshot(cfg)
-        mat_bin=self.win.color_ana_ocr(img)
-        c=self.win.ocr(mat_bin)
+        c=self.win.color_ana_ocr(img)
         line=c.encode('UTF-8', 'ignore').decode('UTF-8')  
         #logging.info(f"识别字符串[{code}]")
         grade=self.bp.match_grade(line)
@@ -462,7 +461,7 @@ class task_light:
         x_offs=self.config["建设菜单"]["任务和光增益"]["图标"]["X偏移"]*idx
         img=self.win.screenshot([cfg[0]+x_offs]+cfg[1:])
         return img
-    def get_info_from_buff_img(self,img):
+    def get_mat_cut(self,img):
         mat=np.asarray(img)
         for row in range(mat.shape[0]):
             if (mat[row,mat.shape[1]-1]<245).all():
@@ -471,13 +470,29 @@ class task_light:
             if (mat[0,col-1]<245).all():
                 break
         mat_cut=mat[0:row,col-1:]
-        if(mat_cut.size<mat.size*0.15):
+        return mat_cut
+    def get_info_from_mat_cut(self,mat_cut):        
+        row_h=int(self.config["建设菜单"]["任务和光增益"]["弹窗"]["行高"]*self.win.height+0.5)
+        last_row_h=int(self.config["建设菜单"]["任务和光增益"]["弹窗"]["末行高"]*self.win.height+0.5)
+        last_row_ofs=int(self.config["建设菜单"]["任务和光增益"]["弹窗"]["末行偏移"]*self.win.height+0.5)
+        h=mat_cut.shape[0]
+        w=mat_cut.shape[1]
+        line_num=int((h-last_row_h)/row_h+0.5)
+        line_list=[]
+        if mat_cut.shape[0]<last_row_h:
             return []
-        mat_gray=cv2.cvtColor(mat_cut,cv2.COLOR_RGB2GRAY)
-        mat_bin=cv2.inRange(mat_gray,190,255)
-        info=self.win.ocr(mat_bin)
-        #info=pytesseract.image_to_string(Image.fromarray(mat_bin),lang='chi_sim',config='--psm 6')
-        return info
+        for line_idx in range(line_num):
+            mat=mat_cut[row_h*line_idx:row_h*line_idx+row_h,0:w]
+            line=self.win.gray_th_ocr(mat,th=190,inv=False)
+            line_list.append(line)
+        mat=mat_cut[row_h*line_num+last_row_ofs:row_h*(line_num+1)+last_row_ofs,\
+            0:w]
+        line=self.win.gray_th_ocr(mat,th=190,inv=False)
+        line_list.append(line)
+        return str.join("\n",line_list)    
+    def get_info_from_buff_img(self,img):
+        mat_cut=self.get_mat_cut(img)
+        return self.get_info_from_mat_cut(mat_cut)
     def ana_info(self,info):
         lines=info.split('\n')
         last_line=lines[-1]
@@ -527,7 +542,7 @@ class construct_menu:
     def get_gold_num(self):
         cfg=self.config["建设菜单"]["金币"]["矩形"]
         img=self.win.screenshot(cfg)
-        gn=self.win.gray_th_ocr(img,th=180,inv=True)
+        gn=self.win.gray_th_ocr(img,th=180,inv=False,lang='eng')
         return gn
     def click(self):
         self.win.click(self.config["建设菜单"]["位置"])

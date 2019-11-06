@@ -23,15 +23,15 @@ class buff_praser:
             logging.info(f"没有为[{line}]开头找到匹配的关键字，使用原来的关键字")
             return None
     def match_grade(self,line):
-        result=re.findall(r"等级(\d+):\s+",line)
+        result=re.findall(r"等级(\d+):\s*",line)
         if result:
             return int(result[0])
         else:
             logging.info(f"[{line}]中没有等级信息。")
             return 0
     def strip_grade(self,line):
-        return re.sub(r"等级\d+:\s+","",line)
-        
+        return re.sub(r"等级\d+:\s*","",line)
+
     def match_percent(self,line):
         result=re.findall(r"增加(\d+)%",line)
         if result:

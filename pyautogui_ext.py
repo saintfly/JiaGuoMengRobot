@@ -4,6 +4,9 @@ import numpy as np
 import pytesseract
 import cv2.cv2 as cv2
 from PIL import Image
+from io import StringIO
+import pandas as pd
+import logging
 pytesseract.pytesseract.tesseract_cmd="c:/Program Files/Tesseract-OCR/tesseract.exe"
 def win_warp_relative_to_absolute_rect(self,float_rect):
     '''
@@ -89,11 +92,18 @@ def win_warp_rect_mean_color(self,list_rect,color=np.array([255,255,255])):
     mat_bin=cv2.inRange(mat,color,color)
     return mat_bin.sum()/mat_bin.size
 
-def win_wrap_ocr(self,mat_bin):
+def win_wrap_ocr(self,mat_bin,lang='chi_sim'):
     #return pytesseract.image_to_string(Image.fromarray(mat_bin),lang='chi_sim')
-    return pytesseract.image_to_string(Image.fromarray(mat_bin),lang='chi_sim',config='--psm 6')
+    #print(f"lang={lang}")
+    data=pytesseract.image_to_data(Image.fromarray(mat_bin),lang=lang,config='--psm 7')
+    df=pd.read_csv(StringIO(data),sep='\t',dtype={'text':str})
+    min_conf=df.conf[df.conf>0].min()
+    string_list=df.text[df.conf>0].values.tolist()
+    string_code=str.join("",string_list)
+    logging.info(f"识别字符串[{string_code}],最小可信度{min_conf}")
+    return string_code
 
-def win_warp_gray_th_ocr(self,img,th=128,inv=False):
+def win_warp_gray_th_ocr(self,img,th=128,inv=False,lang='chi_sim'):
     mat=np.asarray(img)
     mat_gray=cv2.cvtColor(mat,cv2.COLOR_RGB2GRAY)
     if inv:
@@ -101,7 +111,7 @@ def win_warp_gray_th_ocr(self,img,th=128,inv=False):
     else:
         mode=cv2.THRESH_BINARY
     _,mat_bin=cv2.threshold(mat_gray,th,255,mode)
-    return self.ocr(mat_bin)
+    return self.ocr(mat_bin,lang=lang)
 
 def find_perpendicular_param(p0,dir_vect,p_out):
     '''
@@ -135,7 +145,7 @@ def find_perpendicular_param_pp(p1,p2,p_out):
     dir_vect=(p2-p1)/np.linalg.norm(p2-p1)
     return find_perpendicular_param(p0,dir_vect,p_out)
 
-def win_warp_color_space_ana_orc(self,img,bg_color=None):
+def win_warp_color_space_ana_orc(self,img,bg_color=None,lang='chi_sim'):
     mat=np.asarray(img)
     if bg_color is None:
         bg_color=mat[0,0,:]
@@ -167,7 +177,7 @@ def win_warp_color_space_ana_orc(self,img,bg_color=None):
             else:
                 mat_bin[row,col]=np.array([255,255,255],dtype=np.uint8)
                 
-    return mat_bin
+    return self.ocr(mat_bin,lang=lang)
 #增加相对坐标转屏幕坐标的功能
 pyautogui.Window.rect2relative=win_warp_absolute_to_relative_rect
 pyautogui.Window.rect2absolute=win_warp_relative_to_absolute_rect
