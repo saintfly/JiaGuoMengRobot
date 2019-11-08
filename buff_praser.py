@@ -10,13 +10,22 @@ class buff_praser:
     
     def match_head(self,line,keywords):
         dist_list=[]
+        len_list=[]
         for target in keywords:
             t_len=min(len(target),len(line))
             dist=Levenshtein.hamming(line[:t_len],target[:t_len])
             dist_list.append(dist)
-        min_idx=np.array(dist_list).argmin()
+            len_list.append(t_len)
+        npdist=np.array(dist_list)
+        min_idx=np.array(dist_list).argmin()     
         if(dist_list[min_idx]<=1):
             if(dist_list[min_idx]==1):
+                nplen=np.array(len_list)
+                min_val=np.array(dist_list).min()   
+                min_idx_list=np.where(npdist==min_val)
+                if min_idx_list[0].size>1:
+                    min_len_list=nplen[list(min_idx_list[0])]
+                    min_idx=min_idx_list[0][min_len_list.argmax()]
                 logging.info(f"将[{line}]开头纠正为[{keywords[min_idx]}]")
             return keywords[min_idx]
         else:
