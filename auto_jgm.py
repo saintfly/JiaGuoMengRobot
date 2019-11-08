@@ -14,7 +14,7 @@ def init_log():
     logger=logging.getLogger()
     logging.basicConfig(level=logging.DEBUG,\
         format=fmt_string)
-    handler=logging.FileHandler(filename=f"jgm.log",encoding='utf-8')
+    handler=logging.FileHandler(filename=f"output/jgm.log",encoding='utf-8')
     handler.setFormatter(logging.Formatter(fmt_string))
     logger.addHandler(handler)    
 def init_click(win,config):
@@ -49,7 +49,7 @@ def grab_info(cm,hnl):
             "金币":gold_num
         }
     }
-    with open('info.json','w',encoding='utf-8') as f:
+    with open('output/info.json','w',encoding='utf-8') as f:
         json.dump(all_dict,f,indent=4,ensure_ascii=False)
     
 if "__main__"==__name__:
