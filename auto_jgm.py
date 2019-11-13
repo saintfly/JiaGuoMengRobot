@@ -9,10 +9,20 @@ from shop_menu import shop_menu
 from home_nation_light import home_nation_light
 import logging
 import datetime
+
+from calculator_adapter import json_format_convert
+from calculator_adapter import calculator_wrap
+from calculator_adapter import prase_result
+from calculator_adapter import get_lastest_info
+
 __now=datetime.datetime.now()
 __ts=__now.strftime("%Y%m%d%H%M%S")
 info_file=f'output/org_info_{__ts}.json'
+cal_cfg_file=f'output/cal_cfg_{__ts}.json'
+cal_layout_file=f'output/cal_layout_{__ts}.json'
 log_file=f'output/jgm_{__ts}.log'
+
+
 def init_log():
     fmt_string='%(asctime)s %(filename)s[line:%(lineno)d] [%(name)s] [%(funcName)s] %(levelname)s %(message)s'
     logger=logging.getLogger()
@@ -34,6 +44,19 @@ def init_click(win,config):
 def save_dict_as_json(filename,json_dict):
     with open(filename,'w',encoding='utf-8') as f:
         json.dump(json_dict,f,indent=4,ensure_ascii=False)
+
+def calc_best_layout(json_cfg):
+    if isinstance(json_cfg,dict):
+        dict_cfg=json_cfg
+    elif isinstance(json_cfg,str):
+        with open(json_cfg,'r',encoding='utf-8') as f:
+            dict_cfg=json.load(f)
+    else:
+        logging.error("计算配置参数错误，必须是dict或者json文件名。")
+    calculator_wrap(dict_cfg)
+    cal_result=prase_result()
+    logging.info(f"最佳布局和升级方案解析结果：\n{cal_result}")
+    return cal_result
 
 def grab_info(cm,hnl):
     cm.select()
@@ -110,14 +133,22 @@ if "__main__"==__name__:
 
     #日志
     init_log()
-    test=True
+    test=False
     if test:
+        '''
         org_info=grab_info(cm,hnl)
         logging.info(f"收集的信息使用json格式保存{info_file}")
         save_dict_as_json(info_file,org_info)
         logging.info(f"收集信息：\n{json.dumps(org_info,indent=4,ensure_ascii=False)}")
-        #hnl.select()
-        #print(hnl.ct.grab_info())
+        '''
+        org_file=get_lastest_info("output","org_info_*.json")
+        logging.info(f"读取保存的信息{org_file}")
+        with open(org_file,'r',encoding='utf-8') as f:
+            org_info=json.load(f)
+        json_cfg=json_format_convert(org_info)
+        logging.info(f"布局计算器配置使用json格式保存{cal_cfg_file}")
+        save_dict_as_json(cal_cfg_file,json_cfg)
+        calc_best_layout(json_cfg)
         exit(0)
     #
     # 开始循环
@@ -150,8 +181,18 @@ if "__main__"==__name__:
             logging.info(f"收集的信息使用json格式保存{info_file}")
             save_dict_as_json(info_file,org_info)
             logging.info(f"收集信息：\n{json.dumps(org_info,indent=4,ensure_ascii=False)}")
+            '''
+            org_file=get_lastest_info("output","org_info_*.json")
+            logging.info(f"读取保存的信息{org_file}")
+            with open(org_file,'r',encoding='utf-8') as f:
+                org_info=json.load(f)
+            '''
+            json_cfg=json_format_convert(org_info)
+            logging.info(f"布局计算器配置使用json格式保存{cal_cfg_file}")
+            save_dict_as_json(cal_cfg_file,json_cfg)
+            cal_result=calc_best_layout(json_cfg)
+            logging.info(f"布局计算器结果使用json格式保存{cal_layout_file}")
+            save_dict_as_json(cal_layout_file,cal_result)
                 
-
-
             
 
