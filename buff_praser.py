@@ -26,17 +26,17 @@ class buff_praser:
                 if min_idx_list[0].size>1:
                     min_len_list=nplen[list(min_idx_list[0])]
                     min_idx=min_idx_list[0][min_len_list.argmax()]
-                logging.info(f"将[{line}]开头纠正为[{keywords[min_idx]}]")
+            if(dist_list[min_idx]>0):
+                logging.warning(f"将[{line}]开头纠正为[{keywords[min_idx]}]，距离{dist_list[min_idx]}")
             return keywords[min_idx]
         else:
-            logging.info(f"没有为[{line}]开头找到匹配的关键字，使用原来的关键字")
             return None
     def match_grade(self,line):
         result=re.findall(r"等级(\d+):\s*",line)
         if result:
             return int(result[0])
         else:
-            logging.info(f"[{line}]中没有等级信息。")
+            logging.error(f"[{line}]中没有等级信息。")
             return 0
     def strip_grade(self,line):
         return re.sub(r"等级\d+:\s*","",line)
@@ -46,37 +46,37 @@ class buff_praser:
         if result:
             return int(result[0])
         else:
-            logging.info(f"[{line}]中没有增益值信息。")
+            logging.error(f"[{line}]中没有增益值信息。")
             return 0
     def match_number(self,line):
         result=re.findall(r"(\d+)",line)
         if result:
             return int(result[0])
         else:
-            logging.info(f"[{line}]中没有数字。")
+            logging.error(f"[{line}]中没有数字。")
             return 0
     def type_praser(self,line):
         for bt in self.buff_type:
             if re.findall(bt,line):
                 return bt
-        logging.info(f"[{line}]中没有增益类型")
+        logging.error(f"[{line}]中没有增益类型")
         return None
     def buff_praser(self,line):
         if len(line)<10:
-            logging.info(f"[{line}]太短（{len(line)}）无法解析增益信息")
+            logging.error(f"[{line}]太短（{len(line)}）无法解析增益信息")
             return None,0
         sbt=self.match_head(line,self.single_buff_target)
         mbt=self.match_head(line,self.multi_buff_target)
         value=self.match_percent(line)
         if sbt:
             bt=sbt
-            logging.info(f"[{line}]中解析出对[{sbt}]的单体增益{value}%")
+            logging.debug(f"[{line}]中解析出对[{sbt}]的单体增益{value}%")
         elif mbt:
             bt=mbt
-            logging.info(f"[{line}]中解析出对[{mbt}]的群体增益{value}%")
+            logging.debug(f"[{line}]中解析出对[{mbt}]的群体增益{value}%")
         else:
             bt=None
-            logging.info(f"[{line}]中无法解析增益信息。")
+            logging.error(f"[{line}]中无法解析增益类型信息。")
         return bt,value
 
 if __name__=="__main__":

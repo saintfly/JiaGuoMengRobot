@@ -31,14 +31,17 @@ class china_travelog:
             
             img=self.win.screenshot(line_cfg)
 
-            line=self.win.gray_th_ocr(img,th=160,inv=False)
+            line=self.win.gray_th_ocr(img,th=170,inv=False)
             target,value=self.bp.buff_praser(line)
             if target:
                 logging.info(f"从[{line}]分析出[{target}]的增益百分比{value}")
                 buff_dict.update({target:value})
             else:
-                logging.info(f"从[{line}]什么都没分析出来，丢弃。")
+                logging.error(f"从[{line}]什么都没分析出来，丢弃。")
         self.win.click(self.config["国家之光菜单"]["位置"])
+        for key in buff_dict.keys():
+            if key!="供货" and buff_dict[key]%10!=0:
+                logging.error(f"[{key}]增益{buff_dict[key]}不是10的整数倍，疑似错误。")
         return buff_dict
 class home_nation_light:
     def __init__(self,win,config):

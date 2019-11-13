@@ -51,7 +51,7 @@ class red_packet:
         if(count>=max_splash_count-1):
             logging.error(f"在一个{rp_name}收集后点击{count}次未恢复，疑似出错。")
         else:
-            logging.info(f"在一个{rp_name}中收集中点击{count+1}次")
+            logging.debug(f"在一个{rp_name}中收集中点击{count+1}次")
         time.sleep(1)
 
     def conti_collect(self,rp_name):
@@ -70,6 +70,7 @@ class red_packet:
             logging.error(f"没有识别到蓝星币.识别为[{code}]")
             return 0
     def run(self):
+        logging.info("开始商店菜单点击")
         for rp_name in self.config["商店菜单"]["红包"]["红包列表"]:
             logging.info(f"开始收集{rp_name}")
             self.conti_collect(rp_name)
@@ -133,28 +134,7 @@ class album:
         else:
             logging.info(f"在相册中收集中点击{count+1}次")
         time.sleep(1)
-    def collect1(self):
-        self.click()
-        if(self.check_get_gold()):
-            logging.info(f"在一个相册中收集到金币，退出。")
-            return "金币"
-        th=self.config["商店菜单"]["背景检测区"]["门限"]
-        cfg_rect=self.config["商店菜单"]["背景检测区"]["矩形"]
-        max_splash_count=self.config["商店菜单"]["背景检测区"]["最大闪屏点击"]
-        shadow_mean_gray=self.win.rect_mean_gray(cfg_rect)
-
-        for count in range(max_splash_count):
-            self.click()
-            if(self.win.rect_mean_gray(cfg_rect)>shadow_mean_gray*th):
-                break
-            else:
-                pass
-        if(count>=max_splash_count-1):
-            logging.error(f"在一个相册收集中点击超过{count}次，疑似出错。")
-        else:
-            logging.info(f"在一个相册收集中点击{count}次。")
-        time.sleep(1)
-        return "相片"
+    
     def run(self):
         while True:
             while self.check_free():

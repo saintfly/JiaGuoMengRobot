@@ -97,10 +97,10 @@ def win_wrap_ocr(self,mat_bin,lang='chi_sim'):
     #print(f"lang={lang}")
     data=pytesseract.image_to_data(Image.fromarray(mat_bin),lang=lang,config='--psm 7')
     df=pd.read_csv(StringIO(data),sep='\t',dtype={'text':str})
-    min_conf=df.conf[df.conf>0].min()
-    string_list=df.text[df.conf>0].values.tolist()
+    min_conf=df.conf[df.conf>=0].min()
+    string_list=df.text[df.conf>=0].values.tolist()
     string_code=str.join("",string_list)
-    logging.info(f"识别字符串[{string_code}],最小可信度{min_conf}")
+    logging.debug(f"识别字符串[{string_code}],最小可信度{min_conf}")
     return string_code
 
 def win_wrap_conf_ocr(self,mat_bin,lang='chi_sim'):
@@ -108,10 +108,10 @@ def win_wrap_conf_ocr(self,mat_bin,lang='chi_sim'):
     #print(f"lang={lang}")
     data=pytesseract.image_to_data(Image.fromarray(mat_bin),lang=lang,config='--psm 7')
     df=pd.read_csv(StringIO(data),sep='\t',dtype={'text':str})
-    min_conf=df.conf[df.conf>0].min()
-    string_list=df.text[df.conf>0].values.tolist()
+    min_conf=df.conf[df.conf>=0].min()
+    string_list=df.text[df.conf>=0].values.tolist()
     string_code=str.join("",string_list)
-    logging.info(f"识别字符串[{string_code}],最小可信度{min_conf}")
+    logging.debug(f"识别字符串[{string_code}],最小可信度{min_conf}")
     return min_conf,string_code
 
 def win_warp_gray_th_ocr(self,img,th=128,inv=False,lang='chi_sim'):
@@ -125,7 +125,7 @@ def win_warp_gray_th_ocr(self,img,th=128,inv=False,lang='chi_sim'):
 
     min_conf,code=win_wrap_conf_ocr(self,mat_bin,lang=lang)
     if min_conf<60:
-        logging.info(f"识别可信度{min_conf}太低，尝试改变灰度门限识别")
+        logging.warning(f"识别可信度{min_conf}太低，尝试改变灰度门限识别")
         _,mat_bin=cv2.threshold(mat_gray,int(th*0.8),255,mode)
         min_conf1,code1=win_wrap_conf_ocr(self,mat_bin,lang=lang)
         _,mat_bin=cv2.threshold(mat_gray,int(th+(255-th)*0.2),255,mode)
@@ -146,7 +146,7 @@ def win_warp_gray_th_ocr(self,img,th=128,inv=False,lang='chi_sim'):
             logging.warning(f"识别可信度从{min_conf}提升失败{new_conf}，使用原字符串")
             return code
     else:
-        logging.info(f"识别可信度{min_conf}")
+        logging.debug(f"[{code}]识别可信度{min_conf}")
         return code
 
 def find_perpendicular_param(p0,dir_vect,p_out):

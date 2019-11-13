@@ -9,14 +9,19 @@ from shop_menu import shop_menu
 from home_nation_light import home_nation_light
 import logging
 import datetime
+__now=datetime.datetime.now()
+__ts=__now.strftime("%Y%m%d%H%M%S")
+info_file=f'output/org_info_{__ts}.json'
+log_file=f'output/jgm_{__ts}.log'
 def init_log():
     fmt_string='%(asctime)s %(filename)s[line:%(lineno)d] [%(name)s] [%(funcName)s] %(levelname)s %(message)s'
     logger=logging.getLogger()
-    logging.basicConfig(level=logging.DEBUG,\
+    logging.basicConfig(level=logging.INFO,\
         format=fmt_string)
-    handler=logging.FileHandler(filename=f"output/jgm.log",encoding='utf-8')
+    handler=logging.FileHandler(filename=log_file,encoding='utf-8')
     handler.setFormatter(logging.Formatter(fmt_string))
-    logger.addHandler(handler)    
+    logger.addHandler(handler)
+
 def init_click(win,config):
         cfg=config["建设菜单"]["位置"]
         win.click(cfg)
@@ -25,6 +30,11 @@ def init_click(win,config):
         cfg=config["建设菜单"]["城市任务"]["弹窗"]["完成按钮"]["位置"]
         for ofs in range(-3,3):
             win.click([cfg[0],cfg[1]+ofs*0.02])
+
+def save_dict_as_json(filename,json_dict):
+    with open(filename,'w',encoding='utf-8') as f:
+        json.dump(json_dict,f,indent=4,ensure_ascii=False)
+
 def grab_info(cm,hnl):
     cm.select()
     gold_num=cm.get_gold_num()
@@ -49,8 +59,8 @@ def grab_info(cm,hnl):
             "金币":gold_num
         }
     }
-    with open('output/info.json','w',encoding='utf-8') as f:
-        json.dump(all_dict,f,indent=4,ensure_ascii=False)
+
+    return all_dict
     
 def relogin():
     exit_cfg=config["退出图标"]["位置"]
@@ -100,12 +110,15 @@ if "__main__"==__name__:
 
     #日志
     init_log()
-    #sm.run()
-    #exit(0)
-    #grab_info(cm,hnl)
-    #relogin()
-    #relogin()
-    #exit(0)
+    test=True
+    if test:
+        org_info=grab_info(cm,hnl)
+        logging.info(f"收集的信息使用json格式保存{info_file}")
+        save_dict_as_json(info_file,org_info)
+        logging.info(f"收集信息：\n{json.dumps(org_info,indent=4,ensure_ascii=False)}")
+        #hnl.select()
+        #print(hnl.ct.grab_info())
+        exit(0)
     #
     # 开始循环
     cfg_train_timeout=config["建设菜单"]["火车"]["超时"]
@@ -125,14 +138,18 @@ if "__main__"==__name__:
         # 现在火车超时（最后火车过去300秒，5分钟）并且超时后没有收集过红包，
         # 就收下红包，顺便收下相册。可能浪费一次相册。
         # 但相册周期四天出新，每天收入100+，影响不大。
-        logging.info(f"火车最近收集时间{cm.trs.last_train}")
-        logging.info(f"火车超时时间{cm.trs.last_train+train_timeout}")
-        logging.info(f"红包最近收集时间{sm.rp.last_collect}")
+        logging.debug(f"火车最近收集时间{cm.trs.last_train}")
+        logging.debug(f"火车超时时间{cm.trs.last_train+train_timeout}")
+        logging.debug(f"红包最近收集时间{sm.rp.last_collect}")
         if(cm.trs.last_train+train_timeout<now and\
             cm.trs.last_train+train_timeout>sm.rp.last_collect):
             sm.run()
             cm.select()
-            #开始收集增益信息
+            #开始收集增益信息，尝试自动升级
+            org_info=grab_info(cm,hnl)
+            logging.info(f"收集的信息使用json格式保存{info_file}")
+            save_dict_as_json(info_file,org_info)
+            logging.info(f"收集信息：\n{json.dumps(org_info,indent=4,ensure_ascii=False)}")
                 
 
 

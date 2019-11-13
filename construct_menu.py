@@ -9,7 +9,7 @@ import math
 from buff_praser import buff_praser
 import pandas as pd
 import time
-
+import re
 class policy_center:
     def __init__(self,win,config):
         self.win=win
@@ -78,7 +78,7 @@ class policy_center:
                 #找到一个升级位置点
                 #点击升级
                 pyautogui.click(p)
-                logging.info(f"找到可升级政策，滚屏{page_count}次，位置{p}")
+                logging.debug(f"找到可升级政策，滚屏{page_count}次，位置{p}")
                 #再点击弹窗的确认按钮
                 self.win.click(self.config["建设菜单"]["政策中心"]["弹窗"]["弹窗"]["升级按钮"]["位置"])
                 break
@@ -95,8 +95,7 @@ class policy_center:
         cfg=self.config["建设菜单"]["政策中心"]["弹窗"]["弹窗"]["增益信息"]["矩形"]
         img=self.win.screenshot(cfg)
         c=self.win.color_ana_ocr(img)
-        line=c.encode('UTF-8', 'ignore').decode('UTF-8')  
-        #logging.info(f"识别字符串[{code}]")
+        line=c.encode('UTF-8', 'ignore').decode('UTF-8')
         grade=self.bp.match_grade(line)
         no_grade_line=self.bp.strip_grade(line)
         target,value=self.bp.buff_praser(no_grade_line)
@@ -158,16 +157,16 @@ class policy_center:
         target_cp="上边"
         
         if(cur_cp==target_cp):
-            logging.info(f"当前位置[{cur_cp}，无需移动]")
+            logging.debug(f"当前位置[{cur_cp}，无需移动]")
             return
-        logging.info(f"校准开始：当前位置[{cur_cp}]")
+        logging.debug(f"校准开始：当前位置[{cur_cp}]")
         max_step=self.config["建设菜单"]["政策中心"]["弹窗"]["滚动区域"]["最大移动步长"]
         move_step=int(max_step*self.win.height+0.5)
         
         backup_pause=pyautogui.PAUSE
         pyautogui.PAUSE=0.1
         last_move_dir=self.get_dir_from_current_point(cur_cp,target_cp)
-        logging.info(f"开始从[{cur_cp}]向[{target_cp}]移动，方向{last_move_dir}")
+        logging.debug(f"开始从[{cur_cp}]向[{target_cp}]移动，方向{last_move_dir}")
         while cur_cp!=target_cp:
             move_dir=self.get_dir_from_current_point(cur_cp,target_cp)
             if(last_move_dir!=move_dir):
@@ -175,11 +174,11 @@ class policy_center:
                 move_step=1 if move_step<1 else move_step
             pyautogui.moveRel(0,move_dir*move_step)
             last_move_dir=move_dir
-            logging.info(f"从[{cur_cp}]向[{target_cp}]移动{move_dir*move_step}")
+            logging.debug(f"从[{cur_cp}]向[{target_cp}]移动{move_dir*move_step}")
             cur_cp=self.get_check_point()
         pyautogui.PAUSE=backup_pause  
         pyautogui.sleep(pyautogui.PAUSE) 
-        logging.info(f"校准结束：当前位置[{cur_cp}]")
+        logging.debug(f"校准结束：当前位置[{cur_cp}]")
     def drag_up_stage(self,stage_idx,last_drag=False):
         drag_up_time = self.config["建设菜单"]["政策中心"]["弹窗"]["滚动区域"]["阶段滚动时间"]
         
@@ -190,7 +189,7 @@ class policy_center:
         pyautogui.mouseDown(start)
         if not last_drag:
             self.up_board_calibration()
-            logging.info(f"大位移{-stage_scroll_up_len}")
+            logging.debug(f"大位移{-stage_scroll_up_len}")
             pyautogui.moveRel(0,-50)
             pyautogui.moveRel(0,-stage_scroll_up_len,duration=drag_up_time)
             self.up_board_calibration()
@@ -267,7 +266,7 @@ class train:
         gray_th=self.config["建设菜单"]["火车"]["平均灰度下限"]
         mg=self.win.rect_mean_color(rect)
         if mg>gray_th:
-            logging.info(f"{goods}到达:检测灰度{mg},灰度门限{gray_th}")
+            logging.debug(f"{goods}到达:检测灰度{mg},灰度门限{gray_th}")
             return True
         else:
             #print(f"check arrive fail:{goods},{self.win.rect_mean_color(rect)},{gray_th}")
@@ -282,13 +281,14 @@ class train:
         rect=self.target.get_abs_rect(max_loc[1],max_loc[0])
         mat_std=cmp_mat.std()
         mat_var=cmp_mat.var()
+        cmp_th=cmp_th if cmp_th<1+mat_std*2 else 1+mat_std*2
         if max_val>cmp_th:
-            logging.info(f"绿光检测成功:最大值 {max_val},最小值 {min_val}, 门限 {cmp_th}")
-            logging.info(f"std={mat_std},var={mat_var}")
+            logging.debug(f"绿光检测成功:最大值 {max_val},最小值 {min_val}, 门限 {cmp_th}")
+            logging.debug(f"std={mat_std},var={mat_var}")
             return pyrect.Point(rect.centerx,rect.centery)
         else:
             logging.error(f"绿光检测失败:最大值 {max_val},最小值 {min_val}, 门限 {cmp_th}")
-            logging.info(f"std={mat_std},var={mat_var}")
+            logging.debug(f"std={mat_std},var={mat_var}")
             return None
         
     def goods_collect(self,goods):
@@ -392,6 +392,7 @@ class buildings_center:
         if match_name:
             return match_name
         else:
+            logging.error(f"[{name}]找到匹配的关键字，使用原来关键字")
             return name
 
     def collect_building_info(self,pos):
@@ -507,7 +508,7 @@ class task_light:
                 logging.info(f"从[{line}]分析出[{target}]的增益百分比{value}")
                 buff_dict.update({target:value})
             else:
-                logging.info(f"从[{line}]什么都没分析出来，丢弃。")
+                logging.error(f"从[{line}]什么都没分析出来，丢弃。")
         return {buff_type:buff_dict}
     def click(self,idx):
         cfg=self.config["建设菜单"]["任务和光增益"]["图标"]["位置"]
@@ -520,12 +521,12 @@ class task_light:
             img=self.get_buff_img(idx)
             info=self.get_info_from_buff_img(img)
             if info:
-                logging.info(f"右起第{idx}个图标点击获得信息[{info}]")
+                logging.info(f"右起第{idx+1}个图标点击获得信息[{info}]")
                 buff_dict=self.ana_info(info)
                 buff_cluster.update(buff_dict)
                 self.win.click(self.config["建设菜单"]["位置"])
             else:
-                logging.info(f"右起第{idx}个图标点击没有获得信息")
+                logging.info(f"右起第{idx+1}个图标点击没有获得信息")
                 self.win.click(self.config["建设菜单"]["位置"])
                 break
         return buff_cluster
@@ -540,9 +541,16 @@ class construct_menu:
         self.bc=buildings_center(win,config)
         self.tl=task_light(win,config)
     def get_gold_num(self):
+        logging.info("获取金币信息")
         cfg=self.config["建设菜单"]["金币"]["矩形"]
         img=self.win.screenshot(cfg)
         gn=self.win.gray_th_ocr(img,th=180,inv=False,lang='eng')
+        if re.fullmatch(r'\d+\.*\d*([GKMBT]{0,1}|[abcdefgh]{2})',gn):
+            logging.info(f"识别金币字符串[{gn}]")
+            return gn
+        else:
+            logging.warning(f"金币字符串[{gn}]错误，返回0")
+            return '0'
         return gn
     def click(self):
         self.win.click(self.config["建设菜单"]["位置"])
@@ -552,6 +560,7 @@ class construct_menu:
         self.click()
         self.click()
     def run(self):
+        logging.info("开始建设菜单点击")
         self.select()
         self.bds.run()
         self.trs.run()
