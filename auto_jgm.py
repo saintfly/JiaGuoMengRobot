@@ -52,11 +52,28 @@ def grab_info(cm,hnl):
     with open('output/info.json','w',encoding='utf-8') as f:
         json.dump(all_dict,f,indent=4,ensure_ascii=False)
     
+def relogin():
+    exit_cfg=config["退出图标"]["位置"]
+    comfirm_cfg=config["退出确认"]["位置"]
+    icon_cfg=config["程序图标"]["位置"]
+    app_win.click(exit_cfg)
+    app_win.click(comfirm_cfg)
+    while app_win.height>app_win.width:
+        pyautogui.sleep(1)
+    pyautogui.sleep(3)
+    app_win.click(icon_cfg)
+    while app_win.height<app_win.width:
+        pyautogui.sleep(1)
+
+def relogin_check():
+    now=datetime.datetime.now()
+    if(now.hour>=23 and now.minute>=55):
+        return True
+    else:
+        return False
 if "__main__"==__name__:
 
-
     import pyautogui_ext
-    
     
     #找窗口，激活
     txwin_title='腾讯手游助手【极速傲引擎】'
@@ -85,13 +102,23 @@ if "__main__"==__name__:
     init_log()
     #sm.run()
     #exit(0)
-    grab_info(cm,hnl)
-    exit(0)
+    #grab_info(cm,hnl)
+    #relogin()
+    #relogin()
+    #exit(0)
     #
     # 开始循环
     cfg_train_timeout=config["建设菜单"]["火车"]["超时"]
     train_timeout=datetime.timedelta(0,cfg_train_timeout)
     while True:
+        if relogin_check():
+            logging.warning("定时重启。。。")
+            relogin()
+            sleep_time=300
+            logging.warning(f"定时重启完成，等待{sleep_time}秒")
+            pyautogui.sleep(sleep_time)
+            logging.warning(f"等待完毕，开始自动点击")
+
         init_click(app_win,config)
         cm.run()
         now=datetime.datetime.now()
