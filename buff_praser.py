@@ -7,7 +7,13 @@ class buff_praser:
         self.single_buff_target=config["增益解析"]["单体增益"]
         self.buff_type=config["增益解析"]["增益类别"]
         self.multi_buff_target=config["增益解析"]["群体增益"]
-    
+    def match_unit(self,line):
+        result=re.findall(r'[\d\.]+([GKMBT]{0,1}|[abcdefgh]{2})/',line)
+        if result:
+            return result[0]
+        else:
+            logging.info(f"[{line}]中没有匹配到金币单位。")
+            return 0
     def match_head(self,line,keywords):
         dist_list=[]
         len_list=[]

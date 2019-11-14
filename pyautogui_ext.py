@@ -114,7 +114,7 @@ def win_wrap_conf_ocr(self,mat_bin,lang='chi_sim'):
     logging.debug(f"识别字符串[{string_code}],最小可信度{min_conf}")
     return min_conf,string_code
 
-def win_warp_gray_th_ocr(self,img,th=128,inv=False,lang='chi_sim'):
+def win_warp_gray_th_ocr(self,img,th=128,inv=False,lang='chi_sim',th_adj=False):
     mat=np.asarray(img)
     mat_gray=cv2.cvtColor(mat,cv2.COLOR_RGB2GRAY)
     if inv:
@@ -124,7 +124,7 @@ def win_warp_gray_th_ocr(self,img,th=128,inv=False,lang='chi_sim'):
     _,mat_bin=cv2.threshold(mat_gray,th,255,mode)
 
     min_conf,code=win_wrap_conf_ocr(self,mat_bin,lang=lang)
-    if min_conf<60:
+    if min_conf<60 and th_adj:
         logging.warning(f"识别可信度{min_conf}太低，尝试改变灰度门限识别")
         _,mat_bin=cv2.threshold(mat_gray,int(th*0.8),255,mode)
         min_conf1,code1=win_wrap_conf_ocr(self,mat_bin,lang=lang)

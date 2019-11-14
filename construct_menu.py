@@ -90,6 +90,9 @@ class policy_center:
         if self.check_upgrade():
             logging.info("政策中心可升级")
             self.find_and_click_upgrade_icon()
+            return True
+        else:
+            return False
 
     def get_buff_msg(self):
         cfg=self.config["建设菜单"]["政策中心"]["弹窗"]["弹窗"]["增益信息"]["矩形"]
@@ -216,6 +219,124 @@ class buildings:
     def __init__(self,win,config):
         self.win=win
         self.config=config
+        self.bp=buff_praser(config)
+    def switch_mode_click(self):
+        cfg=self.config["建设菜单"]["建筑"]["模式按钮"]["位置"]
+        self.win.click(cfg)
+    def switch_mode_det(self):
+        cfg_rect=self.config["建设菜单"]["建筑"]["模式按钮"]["检测区"]
+        return self.win.rect_mean_gray(cfg_rect)
+    def switch_mode(self,mode="正常模式"):
+        g1=self.switch_mode_det()
+        self.switch_mode_click()
+        g2=self.switch_mode_det()
+        if g2>g1:
+            cur_mode="正常模式"
+        else:
+            cur_mode="改建模式"
+        if cur_mode!=mode:
+            self.switch_mode_click()
+        else:
+            pass
+    def pop_up_close(self):
+        cfg=self.config["建设菜单"]["建筑"]["弹窗"]["关闭按钮"]["位置"]
+        self.win.click(cfg)
+    def pop_up_open(self):
+        cfg=self.config["建设菜单"]["建筑"]["更换按钮"]["位置"]
+        self.win.click(cfg)
+    def pop_up_scroll(self,row=3,tune=True):
+        cfg=self.config["建设菜单"]["建筑"]["弹窗"]["上拉起点"]["位置"]
+        pos_abs=self.win.win_cfg_to_point(cfg)
+        org_check=self.pop_up_check()
+        pyautogui.mouseDown(pos_abs)
+        pyautogui.moveRel(0,-100)
+        #pyautogui.moveRel(0,-100)
+        pyautogui.moveRel(0,-296*row,duration=0.5)
+        if tune:
+            cur_check=self.pop_up_check()
+            det=cur_check-org_check
+            while abs(det)>1:
+                logging.debug(f"定位差{det}/{cur_check}/{org_check}")
+                pyautogui.moveRel(0,-det,duration=0.5)
+                pyautogui.sleep(pyautogui.PAUSE)
+                cur_check=self.pop_up_check()
+                det=cur_check-org_check
+        pyautogui.sleep(pyautogui.PAUSE)
+        pyautogui.mouseUp()
+    def pop_up_name_rect_get(self,row=-1):
+        cfg_rect=self.config["建设菜单"]["建筑"]["弹窗"]["原建筑名"]["矩形"].copy()
+        if row>=0:
+            h0=self.config["建设菜单"]["建筑"]["弹窗"]["建筑名首行距"]
+            h=self.config["建设菜单"]["建筑"]["弹窗"]["建筑名行距"]
+            cfg_rect[1]=cfg_rect[1]+h0+h*row
+        return cfg_rect
+    def pop_up_name_ocr(self,row=-1):
+        cfg_rect=self.pop_up_name_rect_get(row)
+        img=self.win.screenshot(cfg_rect)
+        #img.show()
+        name_code=self.win.gray_th_ocr(img,th=200,inv=True)
+
+        return self.bp.match_head(name_code,self.bp.single_buff_target)
+            
+    def pop_up_check(self):
+        pos=self.config["建设菜单"]["建筑"]["弹窗"]["检测区"]["位置"]
+        h=int(self.config["建设菜单"]["建筑"]["弹窗"]["检测区"]["高度"]*self.win.height+0.5)
+        pos_abs=self.win.win_cfg_to_point(pos)
+        bbox=[pos_abs[0],pos_abs[1],1,h]
+        img=pyautogui.screenshot(region=bbox)
+        mat=np.asarray(img)
+        write=np.array([255,255,255],dtype=np.uint8)
+        count=0
+        for row in range(mat.shape[0]):
+            if (write==mat[row,0]).all():
+                count+=1
+        return count
+    
+    def swap_building(self,row,col,layout):
+        swapable_build_num=self.config["建设菜单"]["建筑"]["弹窗"]["可选建筑"][row]
+        row_num=3
+        scorll_num=math.ceil(swapable_build_num/row_num)-1
+        last_row_num=swapable_build_num-scorll_num*row_num
+        name=self.pop_up_name_ocr()
+        if name in layout:
+            logging.info(f"位于({row},{col})的[{name}]属于正确布局，不用更换")
+            return None
+        else:
+            logging.info(f"位于({row},{col})的[{name}]不属于最优布局，替换建筑{swapable_build_num}个，共{scorll_num+1}页，最后一页{last_row_num}个")
+            page_num=1
+            for row in range(row_num):
+                rname=self.pop_up_name_ocr(row)
+                if rname in layout:
+                    logging.info(f"在{page_num}页第{row}行找到[{rname}]，替换[{name}]")
+                    cfg_rect=self.pop_up_name_rect_get(row)
+                    self.win.click(cfg_rect[:2])
+                    return rname
+
+            for page_num in range(2,2+scorll_num):
+                if page_num==1+scorll_num:
+                    self.pop_up_scroll(row=last_row_num)
+                else:
+                    self.pop_up_scroll(row=row_num)
+                for row in range(row_num):
+                    rname=self.pop_up_name_ocr(row)
+                    if rname in layout:
+                        logging.info(f"在{page_num}页第{row}行找到[{rname}]，替换[{name}]")
+                        cfg_rect=self.pop_up_name_rect_get(row)
+                        self.win.click(cfg_rect[:2])
+                        return rname
+    def swap_all_building(self,layout):
+        self.switch_mode("改建模式")
+        for row in range(self.config["建设菜单"]["建筑"]["行数"]):
+            for col in range(self.config["建设菜单"]["建筑"]["列数"]):
+                self.click(row,col)
+                self.pop_up_open()
+                self.swap_building(row,col,layout)
+                time.sleep(1)
+                self.pop_up_close()
+        self.switch_mode("正常模式")
+               
+                    
+
     def get_float_rect(self,row,col):
         x_offs=self.config["建设菜单"]["建筑"]["列偏移"]*col
         y_offs=self.config["建设菜单"]["建筑"]["行偏移"]*row+\
@@ -271,8 +392,7 @@ class train:
         else:
             #print(f"check arrive fail:{goods},{self.win.rect_mean_color(rect)},{gray_th}")
             return False
-    
-    
+
     def find_goods_dest(self,gray_list1,gray_list2):
         cmp_th=self.config["建设菜单"]["火车"]["绿光灰度比值限"]
         #矩阵两两相除
@@ -363,9 +483,10 @@ class city_task:
         if(self.check_finish()):
             logging.info("城市任务可升级")
             self.upgrade()
+            return True
         else:
             #print("城市任务不可升级")
-            pass
+            return False
 
 class buildings_center:
     def __init__(self,win,config):
@@ -394,8 +515,33 @@ class buildings_center:
         else:
             logging.error(f"[{name}]找到匹配的关键字，使用原来关键字")
             return name
-
-    def collect_building_info(self,pos):
+    def upgrade_to(self,org_lvl,t_lvl):
+        if(org_lvl>=t_lvl):
+            logging.warning(f'升级到{t_lvl}级，高于原级别{org_lvl}，退出')
+            return
+        else:
+            logging.info(f'将从{org_lvl}升级到{t_lvl}')
+        th=200
+        cfg=self.config["建设菜单"]["建筑中心"]["弹窗"]["滚动区域"]["弹窗"]["升级按钮"]["矩形"]
+        cfg_rect=self.config["建设菜单"]["建筑中心"]["弹窗"]["滚动区域"]["弹窗"]["等级区"]["矩形"]
+        
+        bak_pause=pyautogui.PAUSE
+        pyautogui.PAUSE=0.15
+        for _ in range(t_lvl-org_lvl):
+            self.win.click(cfg[:2])
+        pyautogui.PAUSE=bak_pause
+        pyautogui.sleep(bak_pause)
+        for _ in range(t_lvl-org_lvl):
+            img=self.win.screenshot(cfg_rect)
+            level_code=self.win.gray_th_ocr(img,th=th,inv=True)
+            level=self.bp.match_number(level_code)
+            if(level>=t_lvl):
+                break
+            self.win.click(cfg[:2])
+            pyautogui.sleep(pyautogui.PAUSE)
+        return level
+        #pyautogui.sleep(1)
+    def collect_building_info(self,pos,t_lvl=-1,up_plan={}):
         pyautogui.click(pos)
         #time.sleep(1)
         th=200
@@ -408,12 +554,31 @@ class buildings_center:
         cfg_rect=self.config["建设菜单"]["建筑中心"]["弹窗"]["滚动区域"]["弹窗"]["星级区"]["矩形"]
         img=self.win.screenshot(cfg_rect)
         start_num=self.count_star(img,th)
-        logging.info(f"{name_code} {level_code} 星级:{start_num}")
+        
         level=self.bp.match_number(level_code)
-        self.win.click(self.config["建设菜单"]["建筑中心"]["弹窗"]["滚动区域"]["上滚"]["位置"])
-        return self.fix_name(name_code),level,start_num
-    
-    def transerve_page(self,collect_range):
+        
+        f_name=self.fix_name(name_code)
+        if t_lvl>level:
+            logging.info(f'指令升级：{f_name}从{level}升级到{t_lvl}')
+            rel_level=self.upgrade_to(level,t_lvl)
+            logging.info(f'指令升级：{f_name}升级到{rel_level}')
+            self.win.click(self.config["建设菜单"]["建筑中心"]["弹窗"]["滚动区域"]["上滚"]["位置"])
+            logging.info(f"{f_name} {rel_level} 星级:{start_num}")
+            return f_name,rel_level,start_num
+        elif up_plan and f_name in up_plan.keys() and up_plan[f_name]>level:
+            logging.info(f'布局升级：{f_name}从{level}升级到{up_plan[f_name]}')
+            rel_level=self.upgrade_to(level,up_plan[f_name])
+            logging.info(f'布局升级：{f_name}升级到{rel_level}')
+            self.win.click(self.config["建设菜单"]["建筑中心"]["弹窗"]["滚动区域"]["上滚"]["位置"])
+            logging.info(f"{f_name} {rel_level} 星级:{start_num}")
+            return f_name,rel_level,start_num
+        else:
+            self.win.click(self.config["建设菜单"]["建筑中心"]["弹窗"]["滚动区域"]["上滚"]["位置"])
+            logging.info(f"{f_name} {level} 星级:{start_num}")
+            return f_name,level,start_num
+        
+
+    def transerve_page(self,collect_range,t_lvl=-1,up_plan={}):
         cfg_pos=self.config["建设菜单"]["建筑中心"]["弹窗"]["滚动区域"]["基准"]["位置"]
         row_num=self.config["建设菜单"]["建筑中心"]["弹窗"]["滚动区域"]["每页行数"]
         col_num=self.config["建设菜单"]["建筑中心"]["弹窗"]["滚动区域"]["每页列数"]
@@ -425,13 +590,15 @@ class buildings_center:
                     x=cfg_pos[0]+col*x_interval
                     y=cfg_pos[1]+row*y_interval
                     pos=self.win.win_cfg_to_point([x,y])
-                    info=self.collect_building_info(pos)
+                    logging.debug(f"建筑位置({row},{col},{pos})")
+                    info=self.collect_building_info(pos,t_lvl,up_plan)
                     self.df.loc[len(self.df)]=list(info)
                     
     def select(self):
         cfg_pos=self.config["建设菜单"]["建筑中心"]["位置"]
         self.win.click(cfg_pos)
-    def grab_info(self):
+
+    def grab_info(self,up_to_lvl=-1,up_plan={}):
         self.select()
         row_num=self.config["建设菜单"]["建筑中心"]["弹窗"]["滚动区域"]["每页行数"]
         col_num=self.config["建设菜单"]["建筑中心"]["弹窗"]["滚动区域"]["每页列数"]
@@ -442,11 +609,12 @@ class buildings_center:
         logging.info(f"共{all_num}个建筑，每页{building_num_in_one_page}个，"+\
             f"共{page_num}页，最后一页{remaind_building_num}个")
         for page_idx in range(page_num):
+            logging.info(f"建筑页面{page_idx+1}/{page_num}")
             if(page_idx<page_num-1):
-                self.transerve_page(range(building_num_in_one_page))
+                self.transerve_page(range(building_num_in_one_page),t_lvl=up_to_lvl,up_plan=up_plan)
                 self.drag_up()
             else:
-                self.transerve_page(range(remaind_building_num))
+                self.transerve_page(range(remaind_building_num),t_lvl=up_to_lvl,up_plan=up_plan)
 
         return self.df
     def save_df(self):
@@ -530,6 +698,39 @@ class task_light:
                 self.win.click(self.config["建设菜单"]["位置"])
                 break
         return buff_cluster
+
+class income_stat:
+    def __init__(self,win,config):
+        self.win=win
+        self.config=config
+        self.bp=buff_praser(config)
+    def ana_income(self,line):
+        tgt=self.bp.match_head(line,self.bp.multi_buff_target)
+        val=self.bp.match_number(line)
+        unit=self.bp.match_unit(line)
+        info={tgt:str(val)+unit}
+        logging.info(f"从{line}中解析出[{tgt}]收入[{str(val)+unit}]")
+        return info
+    def grab_info(self):
+        pos=self.config["建设菜单"]["收入统计"]["位置"]
+        self.win.click(pos)
+        cfg=self.config["建设菜单"]["收入统计"]["弹窗"]["在线收入"]["矩形"]
+        img=self.win.screenshot(cfg)
+        inline_income=self.win.gray_th_ocr(img,th=190,inv=False)
+        cfg=self.config["建设菜单"]["收入统计"]["弹窗"]["离线收入"]["矩形"]
+        img=self.win.screenshot(cfg)
+        offline_income=self.win.gray_th_ocr(img,th=190,inv=False)
+        cfg=self.config["建设菜单"]["收入统计"]["弹窗"]["供货奖励"]["矩形"]
+        img=self.win.screenshot(cfg)
+        suply_buff=self.win.gray_th_ocr(img,th=190,inv=False)
+        info=self.ana_income(inline_income)
+        info.update(self.ana_income(offline_income))
+        tgt,val=self.bp.buff_praser(suply_buff)
+        info.update({tgt:val})
+        logging.info(f"从{suply_buff}中解析出[{tgt}]增益[{val}]")
+        self.win.click(pos)
+        return info
+        
 class construct_menu:
     def __init__(self,win,config):
         self.win=win
@@ -540,6 +741,7 @@ class construct_menu:
         self.ct=city_task(win,config)
         self.bc=buildings_center(win,config)
         self.tl=task_light(win,config)
+        self.ins=income_stat(win,config)
     def get_gold_num(self):
         logging.info("获取金币信息")
         cfg=self.config["建设菜单"]["金币"]["矩形"]
@@ -564,8 +766,9 @@ class construct_menu:
         self.select()
         self.bds.run()
         self.trs.run()
-        self.ct.run()
-        self.pc.run()
+        chagned1=self.ct.run()
+        chagned2=self.pc.run()
+        return chagned1 or chagned2
     
 if __name__=="__main__":
     import json
@@ -600,7 +803,17 @@ if __name__=="__main__":
     #bc=buildings_center(app_win,config)
     #cm.run()
     cm.select()
-    cm.pc.grab_info()
+    #cm.pc.grab_info()
+    #cm.bc.grab_info(up_to_lvl=1410)
+    
+    cm.bds.switch_mode("改建模式")
+
+    layout=["电厂","零件厂","企鹅机械","五金店","民食斋","媒体之声","人才公寓","中式小楼","空中别墅"]
+    #layout=["强国煤业","人民石油","造纸厂","游泳馆","学校","商贸中心","梦想公寓","复兴公馆","钢结构房"]
+    cm.bds.swap_all_building(layout)
+
+    cm.bds.switch_mode("正常模式")
+    
     cm.select()
     '''
     buff_cluster=cm.tl.grab_info()

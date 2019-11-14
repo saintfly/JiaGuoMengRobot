@@ -26,10 +26,10 @@ log_file=f'output/jgm_{__ts}.log'
 def init_log():
     fmt_string='%(asctime)s %(filename)s[line:%(lineno)d] [%(name)s] [%(funcName)s] %(levelname)s %(message)s'
     logger=logging.getLogger()
-    logging.basicConfig(level=logging.INFO,\
-        format=fmt_string)
+    logging.basicConfig(level=logging.INFO, format=fmt_string)
     handler=logging.FileHandler(filename=log_file,encoding='utf-8')
     handler.setFormatter(logging.Formatter(fmt_string))
+    handler.setLevel(logging.NOTSET)
     logger.addHandler(handler)
 
 def init_click(win,config):
@@ -97,13 +97,36 @@ def relogin():
     app_win.click(icon_cfg)
     while app_win.height<app_win.width:
         pyautogui.sleep(1)
+    sleep_time=config["建设菜单"]["火车"]["超时"]
+    logging.warning(f"定时重启完成，等待{sleep_time}秒，跳出重启时间段")
+    pyautogui.sleep(sleep_time)
+    logging.warning(f"等待完毕，开始自动点击")
 
 def relogin_check():
+    ts=config["建设菜单"]["火车"]["超时"]
+
     now=datetime.datetime.now()
-    if(now.hour>=23 and now.minute>=55):
-        return True
-    else:
-        return False
+    check_time=now.replace(hour=0, minute=0, second=0, microsecond=0)+datetime.timedelta(seconds=ts)
+    return now<check_time
+
+def auto_upgrade(cm,sm,hnl):
+    org_info=grab_info(cm,hnl)
+    logging.info(f"收集的信息使用json格式保存{info_file}")
+    save_dict_as_json(info_file,org_info)
+    #logging.info(f"收集信息：\n{json.dumps(org_info,indent=4,ensure_ascii=False)}")
+    json_cfg=json_format_convert(org_info)
+    logging.info(f"布局计算器配置使用json格式保存{cal_cfg_file}")
+    save_dict_as_json(cal_cfg_file,json_cfg)
+    cal_result=calc_best_layout(json_cfg)
+    logging.info(f"布局计算器结果使用json格式保存{cal_layout_file}")
+    save_dict_as_json(cal_layout_file,cal_result)            
+    cm.select()
+    cm.bc.grab_info(up_to_lvl=0,up_plan=cal_result["升级方案"])
+    layout=cal_result["升级方案"].keys()
+    cm.select()
+    cm.bds.swap_all_building(layout)
+    cm.select()
+
 if "__main__"==__name__:
 
     import pyautogui_ext
@@ -117,6 +140,7 @@ if "__main__"==__name__:
     pyautogui.PAUSE=0.5
 
     app_win=txwin[0]
+    app_win.restore()
     app_win.activate()
 
     #读取配置
@@ -135,20 +159,13 @@ if "__main__"==__name__:
     init_log()
     test=False
     if test:
-        '''
-        org_info=grab_info(cm,hnl)
-        logging.info(f"收集的信息使用json格式保存{info_file}")
-        save_dict_as_json(info_file,org_info)
-        logging.info(f"收集信息：\n{json.dumps(org_info,indent=4,ensure_ascii=False)}")
-        '''
-        org_file=get_lastest_info("output","org_info_*.json")
-        logging.info(f"读取保存的信息{org_file}")
-        with open(org_file,'r',encoding='utf-8') as f:
-            org_info=json.load(f)
-        json_cfg=json_format_convert(org_info)
-        logging.info(f"布局计算器配置使用json格式保存{cal_cfg_file}")
+        cal_cfg_file=get_lastest_info("output","cal_cfg_*.json")
+        logging.info(f"读取保存的信息{cal_cfg_file}")
+        with open(cal_cfg_file,'r',encoding='utf-8') as f:
+            json_cfg=json.load(f)
+        print(f"json info{json_cfg}")
         save_dict_as_json(cal_cfg_file,json_cfg)
-        calc_best_layout(json_cfg)
+        cal_result=calc_best_layout(json_cfg)
         exit(0)
     #
     # 开始循环
@@ -156,16 +173,17 @@ if "__main__"==__name__:
     train_timeout=datetime.timedelta(0,cfg_train_timeout)
     while True:
         if relogin_check():
+            #零点后的火车超时内进行重启，防止一直在线不来火车。
             logging.warning("定时重启。。。")
             relogin()
-            sleep_time=300
-            logging.warning(f"定时重启完成，等待{sleep_time}秒")
-            pyautogui.sleep(sleep_time)
-            logging.warning(f"等待完毕，开始自动点击")
 
         init_click(app_win,config)
-        cm.run()
         now=datetime.datetime.now()
+        if cm.run():
+            if now.hour<23:
+                #自动升级大约需要30分钟。23点之后，不再根据政策和城市任务变化进行自动升级
+                #防止错过零点的重启机会
+                auto_upgrade(cm,sm,hnl)
         # 现在火车超时（最后火车过去300秒，5分钟）并且超时后没有收集过红包，
         # 就收下红包，顺便收下相册。可能浪费一次相册。
         # 但相册周期四天出新，每天收入100+，影响不大。
@@ -176,23 +194,8 @@ if "__main__"==__name__:
             cm.trs.last_train+train_timeout>sm.rp.last_collect):
             sm.run()
             cm.select()
-            #开始收集增益信息，尝试自动升级
-            org_info=grab_info(cm,hnl)
-            logging.info(f"收集的信息使用json格式保存{info_file}")
-            save_dict_as_json(info_file,org_info)
-            logging.info(f"收集信息：\n{json.dumps(org_info,indent=4,ensure_ascii=False)}")
-            '''
-            org_file=get_lastest_info("output","org_info_*.json")
-            logging.info(f"读取保存的信息{org_file}")
-            with open(org_file,'r',encoding='utf-8') as f:
-                org_info=json.load(f)
-            '''
-            json_cfg=json_format_convert(org_info)
-            logging.info(f"布局计算器配置使用json格式保存{cal_cfg_file}")
-            save_dict_as_json(cal_cfg_file,json_cfg)
-            cal_result=calc_best_layout(json_cfg)
-            logging.info(f"布局计算器结果使用json格式保存{cal_layout_file}")
-            save_dict_as_json(cal_layout_file,cal_result)
+            #开始收集增益信息，并自动升级和调整布局
+            auto_upgrade(cm,sm,hnl)
                 
             
 
