@@ -1,7 +1,7 @@
 # JiaGuoMeng
 家国梦自动机器人，基本实现无人值守运行
 
-拜访计算源于：https://github.com/WANGPeisheng1997/JiaGuoMengCalculator
+建筑最优摆放计算源于：https://github.com/WANGPeisheng1997/JiaGuoMengCalculator
 修改了几个BUG，请使用fork版本https://github.com/saintfly/JiaGuoMengCalculator
 
 ## 特性
