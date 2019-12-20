@@ -18,7 +18,9 @@ class policy_center:
 
     def get_upgrade_mean_gray(self):
         rect=self.config["建设菜单"]["政策中心"]["升级图标"]["矩形"]
-        return self.win.rect_mean_gray(rect)
+        t=self.win.rect_mean_gray(rect)
+        logging.info(f'政策中心图标灰度均值{t}')
+        return t
     def check_upgrade(self):
         gray_th=self.config["建设菜单"]["政策中心"]["升级图标"]["平均灰度下限"]
         return self.get_upgrade_mean_gray()>gray_th
@@ -78,7 +80,7 @@ class policy_center:
                 #找到一个升级位置点
                 #点击升级
                 pyautogui.click(p)
-                logging.debug(f"找到可升级政策，滚屏{page_count}次，位置{p}")
+                logging.info(f"找到可升级政策，滚屏{page_count}次，位置{p}")
                 #再点击弹窗的确认按钮
                 self.win.click(self.config["建设菜单"]["政策中心"]["弹窗"]["弹窗"]["升级按钮"]["位置"])
                 break
@@ -299,7 +301,7 @@ class buildings:
         last_row_num=swapable_build_num-scorll_num*row_num
         name=self.pop_up_name_ocr()
         if name in layout:
-            logging.info(f"位于({row},{col})的[{name}]属于正确布局，不用更换")
+            logging.info(f"位于({row},{col})的[{name}]属于最优布局，不用更换")
             return None
         else:
             logging.info(f"位于({row},{col})的[{name}]不属于最优布局，替换建筑{swapable_build_num}个，共{scorll_num+1}页，最后一页{last_row_num}个")
@@ -359,6 +361,7 @@ class buildings:
         abs_rect=self.get_abs_rect(row,col)
         pyautogui.click(abs_rect.center)
     def click_all(self):
+        self.click(0,0)
         for row in range(self.config["建设菜单"]["建筑"]["行数"]):
             for col in range(self.config["建设菜单"]["建筑"]["列数"]):
                 self.click(row,col)
@@ -450,6 +453,7 @@ class train:
         #检测每个位置是否都检测不到X，即没有货物了
         while(not np.array(list(map(lambda x:x==-1,retval))).all()):
             #记录最后火车时间
+            logging.info("收集了一次火车货物")
             self.last_train=datetime.datetime.now()
             retval=[]
             for goods in self.config["建设菜单"]["火车"]["货物列表"]:
@@ -543,7 +547,7 @@ class buildings_center:
         #pyautogui.sleep(1)
     def collect_building_info(self,pos,t_lvl=-1,up_plan={}):
         pyautogui.click(pos)
-        #time.sleep(1)
+        pyautogui.sleep(pyautogui.PAUSE)
         th=200
         cfg_rect=self.config["建设菜单"]["建筑中心"]["弹窗"]["滚动区域"]["弹窗"]["名称区"]["矩形"]
         img=self.win.screenshot(cfg_rect)
@@ -694,10 +698,15 @@ class task_light:
                 buff_cluster.update(buff_dict)
                 self.win.click(self.config["建设菜单"]["位置"])
             else:
+                
                 logging.info(f"右起第{idx+1}个图标点击没有获得信息")
                 self.win.click(self.config["建设菜单"]["位置"])
                 break
-        return buff_cluster
+        if buff_cluster:
+            return buff_cluster
+        else:
+            return {"家国之光":{"所有": 0},"城市任务":{"所有": 0}}
+        
 
 class income_stat:
     def __init__(self,win,config):
@@ -748,7 +757,12 @@ class construct_menu:
         img=self.win.screenshot(cfg)
         gn=self.win.gray_th_ocr(img,th=180,inv=False,lang='eng')
         if re.fullmatch(r'\d+\.*\d*([GKMBT]{0,1}|[abcdefgh]{2})',gn):
-            logging.info(f"识别金币字符串[{gn}]")
+            
+            if(len(gn)>3 and gn[-1]=='9' and gn[-2]=='9'):
+                gn=re.sub(r'gg$','gg',gn)
+                logging.info(f"修正识别金币字符串[{gn}]")
+            else:
+                logging.info(f"识别金币字符串[{gn}]")
             return gn
         else:
             logging.warning(f"金币字符串[{gn}]错误，返回0")
@@ -766,6 +780,8 @@ class construct_menu:
         self.select()
         self.bds.run()
         self.trs.run()
+        #金币收集的动画效果会干扰检测，增加延迟，等待动画效果完毕。
+        pyautogui.sleep(2)
         chagned1=self.ct.run()
         chagned2=self.pc.run()
         return chagned1 or chagned2
@@ -804,8 +820,8 @@ if __name__=="__main__":
     #cm.run()
     cm.select()
     #cm.pc.grab_info()
-    #cm.bc.grab_info(up_to_lvl=1410)
-    
+    cm.bc.grab_info(up_to_lvl=1625)
+    exit(0)
     cm.bds.switch_mode("改建模式")
 
     layout=["电厂","零件厂","企鹅机械","五金店","民食斋","媒体之声","人才公寓","中式小楼","空中别墅"]
