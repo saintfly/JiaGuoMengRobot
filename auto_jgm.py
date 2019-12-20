@@ -40,6 +40,8 @@ def init_click(win,config):
         cfg=config["建设菜单"]["城市任务"]["弹窗"]["完成按钮"]["位置"]
         for ofs in range(-3,3):
             win.click([cfg[0],cfg[1]+ofs*0.02])
+        #win.click(cfg)
+        #win.click(cfg)
 
 def save_dict_as_json(filename,json_dict):
     with open(filename,'w',encoding='utf-8') as f:
@@ -61,6 +63,7 @@ def calc_best_layout(json_cfg):
 def grab_info(cm,hnl):
     cm.select()
     gold_num=cm.get_gold_num()
+    #gold_num='1.05hh'
     building_df=cm.bc.grab_info()
     building_dict=building_df.set_index(building_df.columns[0]).T.to_dict('dict')
     cm.select()
@@ -99,7 +102,7 @@ def relogin():
         pyautogui.sleep(1)
     sleep_time=config["建设菜单"]["火车"]["超时"]
     logging.warning(f"定时重启完成，等待{sleep_time}秒，跳出重启时间段")
-    pyautogui.sleep(sleep_time)
+    pyautogui.sleep(sleep_time/2)
     logging.warning(f"等待完毕，开始自动点击")
 
 def relogin_check():
@@ -167,14 +170,18 @@ if "__main__"==__name__:
         save_dict_as_json(cal_cfg_file,json_cfg)
         cal_result=calc_best_layout(json_cfg)
         exit(0)
+    #relogin()
+    #auto_upgrade(cm,sm,hnl)   
     #
     # 开始循环
     cfg_train_timeout=config["建设菜单"]["火车"]["超时"]
     train_timeout=datetime.timedelta(0,cfg_train_timeout)
     while True:
+        app_win.activate()
         if relogin_check():
             #零点后的火车超时内进行重启，防止一直在线不来火车。
             logging.warning("定时重启。。。")
+            relogin()
             relogin()
 
         init_click(app_win,config)
@@ -192,7 +199,10 @@ if "__main__"==__name__:
         logging.debug(f"红包最近收集时间{sm.rp.last_collect}")
         if(cm.trs.last_train+train_timeout<now and\
             cm.trs.last_train+train_timeout>sm.rp.last_collect):
+            logging.info("火车很久没来了")
             sm.run()
+            cm.select()
+            cm.run()
             cm.select()
             #开始收集增益信息，并自动升级和调整布局
             auto_upgrade(cm,sm,hnl)
