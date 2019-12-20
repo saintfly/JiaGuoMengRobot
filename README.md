@@ -1,8 +1,8 @@
 # JiaGuoMeng
 家国梦自动机器人，基本实现无人值守运行
 
-拜访计算源于：https://github.com/WANGPeisheng1997/JiaGuoMengCalculator
-修改了几个BUG，请使用fork版本https://github.com/saintfly/JiaGuoMengCalculator
+建筑最优摆放计算源于：https://github.com/WANGPeisheng1997/JiaGuoMengCalculator
+修改了几个BUG，PR还没接受，请使用fork版本https://github.com/saintfly/JiaGuoMengCalculator
 
 ## 特性
 - 计算优化布局，调整布局并升级建筑。
@@ -29,6 +29,9 @@
 
 - 运行方法
 	克隆本项目和增加修改补丁的摆放计算器https://github.com/saintfly/JiaGuoMengCalculator，放到同一个目录下。在本项目目录下执行python auto_jgm.py
+
+## 退出方法
+如果可以激活命令行窗口，直接输入ctrl+c退出。如果焦点无法切换，则把鼠标移动到屏幕左上角落，等待一会就可以退出。
 
 ## 更新记录
 2019/11/15 首次公开发布
